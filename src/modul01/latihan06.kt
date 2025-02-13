@@ -1,11 +1,11 @@
 package modul01
 
 fun main (){
-    val greet = { name: String -> greeting(name) }
+    val greet = { name: String -> greetings(name) }
     greet("Diki")
 
 }
 
-fun greeting (name: String){
+fun greetings (name: String){
         println("Hello $name!")
 }
