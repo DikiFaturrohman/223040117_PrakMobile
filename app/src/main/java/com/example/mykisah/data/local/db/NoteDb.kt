@@ -7,7 +7,7 @@ import androidx.room.RoomDatabase
 import com.example.mykisah.data.local.dao.NoteDao
 import com.example.mykisah.data.local.models.Note
 
-@Database(entities = [Note::class], version = 1)
+@Database(entities = [Note::class], version = 2)
 abstract class NoteDb : RoomDatabase() {
     abstract fun noteDao(): NoteDao
 
@@ -22,8 +22,12 @@ abstract class NoteDb : RoomDatabase() {
                     context.applicationContext,
                     NoteDb::class.java,
                     "note_db"
-                ).build().also { INSTANCE = it }
+                )
+                    .fallbackToDestructiveMigration() // ✅ Tambahkan ini
+                    .build()
+                    .also { INSTANCE = it }
             }
         }
+
     }
 }

@@ -17,6 +17,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.example.mykisah.data.local.db.NoteDb
 import com.example.mykisah.data.local.models.Note
+import com.example.mykisah.ui.components.CategoryDropdownMenu
 import kotlinx.coroutines.launch
 
 
@@ -28,15 +29,22 @@ fun NotesSection(
     val context = LocalContext.current
     val dao = NoteDb.getDatabase(context).noteDao()
     val notes by dao.getAllNotes().collectAsState(initial = emptyList())
+    val allCategories by dao.getAllCategories().collectAsState(initial = listOf())
     val scope = rememberCoroutineScope()
     var showDialog by remember { mutableStateOf(false) }
     var noteToDelete by remember { mutableStateOf<Note?>(null) }
     var searchQuery by remember { mutableStateOf("") }
+    var selectedFilter by remember { mutableStateOf("Semua") }
 
     val filteredNotes = notes.filter {
-        it.title.contains(searchQuery, ignoreCase = true) ||
-                it.description.contains(searchQuery, ignoreCase = true)
+        (selectedFilter == "Semua" || it.category == selectedFilter) &&
+                (it.title.contains(searchQuery, ignoreCase = true) ||
+                        it.description.contains(searchQuery, ignoreCase = true))
     }
+
+
+    val notesFiltered = if (selectedFilter == "Semua") notes else notes.filter { it.category == selectedFilter }
+
 
     Column(
         modifier = Modifier
@@ -53,6 +61,13 @@ fun NotesSection(
                 .fillMaxWidth()
                 .padding(16.dp)
         )
+
+        Row(modifier = Modifier.padding(16.dp)) {
+            CategoryDropdownMenu(categories = listOf("Semua") + allCategories, selected = selectedFilter) {
+                selectedFilter = it
+            }
+
+        }
 
         // List Catatan
         LazyColumn(modifier = Modifier.padding(horizontal = 16.dp)) {
@@ -86,17 +101,7 @@ fun NotesSection(
             }
         }
 
-        // Tombol tambah catatan
-//        Button(
-//            onClick = onCreateNewNote,
-//            modifier = Modifier
-//                .fillMaxWidth()
-//                .padding(16.dp),
-//            shape = RoundedCornerShape(24.dp),
-//            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6200EE))
-//        ) {
-//            Text("Buat Catatan Baru", style = MaterialTheme.typography.titleMedium)
-//        }
+
     }
 
     // Dialog hapus

@@ -23,4 +23,12 @@ interface NoteDao {
 
     @Delete
     suspend fun deleteNote(note: Note)
+
+    @Query("SELECT * FROM notes WHERE category = :category ORDER BY title ASC")
+    fun getNotesByCategory(category: String): Flow<List<Note>>
+
+    @Query("SELECT DISTINCT category FROM notes")
+    fun getAllCategories(): Flow<List<String>>
+
+
 }

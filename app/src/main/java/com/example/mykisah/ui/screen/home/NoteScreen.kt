@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 import java.util.*
 
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NoteScreen(
     note: Note?, // data catatan yang akan diedit, null = catatan baru
@@ -23,9 +24,13 @@ fun NoteScreen(
 ) {
     val context = LocalContext.current
     val dao = NoteDb.getDatabase(context).noteDao()
+    val categories = listOf("Umum", "Kerja", "Pribadi", "Ide")
 
     var title by remember { mutableStateOf(note?.title ?: "") }
     var description by remember { mutableStateOf(note?.description ?: "") }
+    var expanded by remember { mutableStateOf(false) }
+    var selectedCategory by remember { mutableStateOf(note?.category ?: "Umum") }
+
 
     val scope = rememberCoroutineScope()
 
@@ -33,24 +38,26 @@ fun NoteScreen(
         scope.launch {
             try {
                 if (title.isNotBlank() && description.isNotBlank()) {
-                    val updatedNote = if (note != null && note.id.isNotBlank()) {
-                        note.copy(title = title, description = description)
-                    } else {
-                        Note(
-                            id = UUID.randomUUID().toString(),
-                            title = title,
-                            description = description
-                        )
-                    }
+                    val updatedNote = Note(
+                        id = note?.id ?: UUID.randomUUID().toString(),
+                        title = title,
+                        description = description,
+                        category = selectedCategory
+                    )
                     dao.insertNote(updatedNote)
                 }
             } catch (e: Exception) {
-                e.printStackTrace() // log error ke Logcat
+                e.printStackTrace()
             } finally {
-                navBack() // Tetap kembali meski error
+                navBack()
             }
         }
     }
+
+
+
+
+
 
     Column(
         modifier = Modifier
@@ -83,6 +90,38 @@ fun NoteScreen(
                 .fillMaxWidth()
                 .height(200.dp)
         )
+
+
+
+        Spacer(Modifier.height(24.dp))
+
+        ExposedDropdownMenuBox(
+            expanded = expanded,
+            onExpandedChange = { expanded = !expanded }
+        ) {
+            TextField(
+                value = selectedCategory,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Kategori") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                modifier = Modifier.menuAnchor()
+            )
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                categories.forEach { category ->
+                    DropdownMenuItem(
+                        text = { Text(category) },
+                        onClick = {
+                            selectedCategory = category
+                            expanded = false
+                        }
+                    )
+                }
+            }
+        }
 
         Spacer(Modifier.height(24.dp))
 
