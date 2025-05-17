@@ -1,125 +1,161 @@
 package com.example.mykisah.ui.screen.home
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-
-
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.example.mykisah.data.local.db.NoteDb
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.mykisah.data.local.models.Note
 import com.example.mykisah.ui.components.CategoryDropdownMenu
-import kotlinx.coroutines.launch
-
+import com.example.mykisah.ui.viewmodel.NotesViewModel
 
 @Composable
 fun NotesSection(
     onNoteClick: (Note) -> Unit,
-    onCreateNewNote: () -> Unit
+    onCreateNewNote: () -> Unit,
+    viewModel: NotesViewModel = viewModel()
 ) {
-    val context = LocalContext.current
-    val dao = NoteDb.getDatabase(context).noteDao()
-    val notes by dao.getAllNotes().collectAsState(initial = emptyList())
-    val allCategories by dao.getAllCategories().collectAsState(initial = listOf())
-    val scope = rememberCoroutineScope()
-    var showDialog by remember { mutableStateOf(false) }
-    var noteToDelete by remember { mutableStateOf<Note?>(null) }
-    var searchQuery by remember { mutableStateOf("") }
-    var selectedFilter by remember { mutableStateOf("Semua") }
+    val filteredNotes by viewModel.filteredNotes.collectAsState()
+    val allCategories by viewModel.allCategories.collectAsState()
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    val selectedCategory by viewModel.selectedCategory.collectAsState()
+    val showDeleteDialog by viewModel.showDeleteDialog.collectAsState()
+    val noteToDelete by viewModel.noteToDelete.collectAsState()
 
-    val filteredNotes = notes.filter {
-        (selectedFilter == "Semua" || it.category == selectedFilter) &&
-                (it.title.contains(searchQuery, ignoreCase = true) ||
-                        it.description.contains(searchQuery, ignoreCase = true))
-    }
-
-
-    val notesFiltered = if (selectedFilter == "Semua") notes else notes.filter { it.category == selectedFilter }
-
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(bottom = 16.dp)
-    )
-    {
-        // Search Bar
-        TextField(
-            value = searchQuery,
-            onValueChange = { searchQuery = it },
-            label = { Text("Cari catatan...") },
+    Scaffold(
+        floatingActionButton = {
+            FloatingActionButton(onClick = onCreateNewNote) {
+                Icon(Icons.Default.Add, contentDescription = "Tambah Catatan")
+            }
+        }
+    ) { paddingValues ->
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        )
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
+            // Search Bar
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { viewModel.updateSearchQuery(it) },
+                label = { Text("Cari catatan...") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            )
 
-        Row(modifier = Modifier.padding(16.dp)) {
-            CategoryDropdownMenu(categories = listOf("Semua") + allCategories, selected = selectedFilter) {
-                selectedFilter = it
+            // Category Filter
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Kategori:",
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(end = 8.dp)
+                )
+
+                CategoryDropdownMenu(
+                    categories = listOf("Semua") + allCategories,
+                    selected = selectedCategory,
+                    onValueChange = { viewModel.updateSelectedCategory(it) }
+                )
             }
 
-        }
-
-        // List Catatan
-        LazyColumn(modifier = Modifier.padding(horizontal = 16.dp)) {
-            items(filteredNotes) { note ->
-                Card(
+            // Notes List
+            if (filteredNotes.isEmpty()) {
+                Column(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp)
-                        .clickable { onNoteClick(note) }
+                        .fillMaxSize()
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .padding(16.dp)
-                            .fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(note.title, style = MaterialTheme.typography.titleMedium)
-                            Text(note.description, style = MaterialTheme.typography.bodyMedium)
-                        }
-                        IconButton(
-                            onClick = {
-                                noteToDelete = note
-                                showDialog = true
-                            }
+                    Text(
+                        text = "Tidak ada catatan ditemukan",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
+            } else {
+                LazyColumn(modifier = Modifier.padding(horizontal = 16.dp)) {
+                    items(filteredNotes) { note ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                                .clickable { onNoteClick(note) }
                         ) {
-                            Icon(Icons.Default.Delete, contentDescription = "Delete Note")
+                            Row(
+                                modifier = Modifier
+                                    .padding(16.dp)
+                                    .fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(note.title, style = MaterialTheme.typography.titleMedium)
+                                    Text(
+                                        note.description,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        maxLines = 2
+                                    )
+                                    Text(
+                                        "Kategori: ${note.category}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        modifier = Modifier.padding(top = 4.dp)
+                                    )
+                                }
+                                IconButton(
+                                    onClick = { viewModel.showDeleteConfirmationDialog(note) }
+                                ) {
+                                    Icon(Icons.Default.Delete, contentDescription = "Delete Note")
+                                }
+                            }
                         }
                     }
                 }
             }
         }
-
-
     }
 
-    // Dialog hapus
-    if (showDialog && noteToDelete != null) {
+    // Delete confirmation dialog
+    if (showDeleteDialog && noteToDelete != null) {
         AlertDialog(
-            onDismissRequest = { showDialog = false },
+            onDismissRequest = { viewModel.dismissDeleteDialog() },
             title = { Text("Hapus Catatan?") },
             text = { Text("Yakin mau hapus catatan ini?") },
             confirmButton = {
-                TextButton(onClick = {
-                    scope.launch {
-                        dao.deleteNote(noteToDelete!!)
-                        showDialog = false
-                    }
-                }) { Text("Hapus") }
+                TextButton(onClick = { viewModel.confirmDeleteNote() }) {
+                    Text("Hapus")
+                }
             },
             dismissButton = {
-                TextButton(onClick = { showDialog = false }) { Text("Batal") }
+                TextButton(onClick = { viewModel.dismissDeleteDialog() }) {
+                    Text("Batal")
+                }
             }
         )
     }

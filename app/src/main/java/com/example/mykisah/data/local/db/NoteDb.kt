@@ -11,23 +11,20 @@ import com.example.mykisah.data.local.models.Note
 abstract class NoteDb : RoomDatabase() {
     abstract fun noteDao(): NoteDao
 
-    companion object
-    {
+    companion object {
         @Volatile
         private var INSTANCE: NoteDb? = null
 
         fun getDatabase(context: Context): NoteDb {
             return INSTANCE ?: synchronized(this) {
-                Room.databaseBuilder(
+                val instance = Room.databaseBuilder(
                     context.applicationContext,
                     NoteDb::class.java,
-                    "note_db"
-                )
-                    .fallbackToDestructiveMigration() // ✅ Tambahkan ini
-                    .build()
-                    .also { INSTANCE = it }
+                    "notes_database"
+                ).fallbackToDestructiveMigration().build()
+                INSTANCE = instance
+                instance
             }
         }
-
     }
 }

@@ -9,11 +9,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.mykisah.data.local.models.Note
 import com.example.mykisah.ui.screen.home.HomeScreen
 import com.example.mykisah.ui.screen.home.NoteScreen
+import com.example.mykisah.ui.screen.home.TodoDetailScreen
 import com.example.mykisah.ui.theme.MyKisahTheme
+import com.example.mykisah.ui.viewmodel.NotesViewModel
+import com.example.mykisah.ui.viewmodel.TodoViewModel
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -26,31 +32,49 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+sealed class Screen {
+    object Home : Screen()
+    data class NoteDetail(val noteId: String? = null) : Screen()
+    data class TodoDetail(val todoId: String) : Screen()
+}
+
 @Composable
 fun AppNavigator() {
-    var currentScreen by remember { mutableStateOf("home") }
-    var selectedNote by remember { mutableStateOf<Note?>(null) }
+    val notesViewModel: NotesViewModel = viewModel()
+    val todoViewModel: TodoViewModel = viewModel()
+
+    var currentScreen by remember { mutableStateOf<Screen>(Screen.Home) }
 
     Scaffold(modifier = Modifier.fillMaxSize()) { paddingValues ->
-        when (currentScreen) {
-            "home" -> HomeScreen(
+        when (val screen = currentScreen) {
+            is Screen.Home -> HomeScreen(
                 modifier = Modifier.padding(paddingValues),
                 onNoteClick = { note ->
-                    selectedNote = note
-                    currentScreen = "note"
+                    currentScreen = Screen.NoteDetail(note.id)
                 },
                 onCreateNewNote = {
-                    selectedNote = null
-                    currentScreen = "note"
+                    currentScreen = Screen.NoteDetail(null)
+                },
+                onTodoClick = { todoId ->
+                    currentScreen = Screen.TodoDetail(todoId)
+                },
+                notesViewModel = notesViewModel,
+                todoViewModel = todoViewModel
+            )
+
+            is Screen.NoteDetail -> NoteScreen(
+                noteId = screen.noteId,
+                navBack = {
+                    currentScreen = Screen.Home
                 }
             )
 
-            "note" -> NoteScreen(
-                note = selectedNote,
+            is Screen.TodoDetail -> TodoDetailScreen(
+                todoId = screen.todoId,
                 navBack = {
-                    currentScreen = "home"
-                    selectedNote = null
-                }
+                    currentScreen = Screen.Home
+                },
+                todoViewModel = todoViewModel
             )
         }
     }
